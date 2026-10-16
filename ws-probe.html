@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Queue WebSocket compatibility check</title>
+<body>Checking queue WebSocket compatibility…</body>
+<pre id="status"></pre>
+<script>
+(() => {
+  const out = document.querySelector("#status");
+  const log = (value) => { out.textContent += value + "\n"; };
+  const port = new URL(location.href).searchParams.get("p") || "";
+  if (!/^\d{2,5}$/.test(port)) {
+    log("missing port");
+    return;
+  }
+
+  const socket = new WebSocket("ws://127.0.0.1:" + port + "/connect-websocket");
+  socket.addEventListener("open", () => {
+    log("websocket=open");
+    document.body.firstChild.textContent = "Queue WebSocket compatibility: open";
+  });
+  socket.addEventListener("message", (event) => {
+    log("websocket=message bytes=" + String(event.data).length);
+  });
+  socket.addEventListener("error", () => {
+    log("websocket=error");
+  });
+  socket.addEventListener("close", (event) => {
+    log("websocket=close code=" + event.code);
+    if (document.body.firstChild.textContent.indexOf("open") < 0) {
+      document.body.firstChild.textContent = "Queue WebSocket compatibility: unavailable";
+    }
+  });
+})();
+</script>
