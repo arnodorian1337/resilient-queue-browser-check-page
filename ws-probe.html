@@ -7,13 +7,24 @@
 (() => {
   const out = document.querySelector("#status");
   const log = (value) => { out.textContent += value + "\n"; };
+  log("script=start");
   const port = new URL(location.href).searchParams.get("p") || "";
   if (!/^\d{2,5}$/.test(port)) {
     log("missing port");
     return;
   }
 
-  const socket = new WebSocket("ws://127.0.0.1:" + port + "/connect-websocket");
+  let socket;
+  try {
+    socket = new WebSocket("ws://127.0.0.1:" + port + "/connect-websocket");
+    log("websocket=constructed");
+  } catch (error) {
+    log("websocket=constructor-error " + error.name);
+    return;
+  }
+  setTimeout(() => {
+    log("websocket=state-" + socket.readyState);
+  }, 3000);
   socket.addEventListener("open", () => {
     log("websocket=open");
     document.body.firstChild.textContent = "Queue WebSocket compatibility: open";
