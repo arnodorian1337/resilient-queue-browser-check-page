@@ -1,0 +1,13 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Queue compatibility redirect</title>
+<body>Opening the local compatibility check…</body>
+<script>
+  const params = new URL(location.href).searchParams;
+  const port = params.get("port") || "";
+  if (/^[0-9]{1,5}$/.test(port) && Number(port) > 0 && Number(port) < 65536) {
+    location.replace("http://127.0.0.1:" + port + "/?via=external");
+  } else {
+    document.body.textContent = "Invalid compatibility check address.";
+  }
+</script>
